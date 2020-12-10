@@ -35,6 +35,7 @@ class GameWrapper:
         self.terminal_viz = terminal_viz
         self.time_to_make_a_move = time_to_make_a_move
         self.penalty_score = penalty_score
+        self.some_player_cant_move = False
         
         
         self.game_time_left_for_players = [game_time, game_time]
@@ -63,7 +64,7 @@ class GameWrapper:
 
     def check_cant_move_end_game(self, player_index):
 
-        if player_index and (self.game.player_cant_move(player_index) or self.game.player_cant_move(1 - player_index)):
+        if player_index and self.some_player_cant_move:
             score_1, score_2 = self.game.get_players_scores()
             if score_1 == score_2:
                 messages = ["     It's a Tie!", f'scores: {score_1}, {score_2}']
@@ -120,6 +121,7 @@ class GameWrapper:
         cant_move = self.check_cant_move_penalize(player_index)
         if cant_move:
             pos = self.game.get_player_position(player_index)
+            self.some_player_cant_move = True
         else:
             pos = self.play_turn(player_index)
         updated_position = self.game.update_staff_with_pos(pos)
@@ -138,6 +140,7 @@ class GameWrapper:
             cant_move = self.check_cant_move_penalize(player_index)
             if cant_move:
                 pos = self.game.get_player_position(player_index)
+                self.some_player_cant_move = True
             else:
                 pos = self.play_turn(player_index)
             self.game.update_staff_with_pos(pos)
