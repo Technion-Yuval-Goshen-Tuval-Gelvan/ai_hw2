@@ -5,7 +5,7 @@ from utils import ALPHA_VALUE_INIT, BETA_VALUE_INIT
 
 
 class SearchAlgos:
-    def __init__(self, utility, succ, perform_move, goal):
+    def __init__(self, utility, succ, perform_move, goal=None):
         """The constructor for all the search algos.
         You can code these functions as you like to, 
         and use them in MiniMax and AlphaBeta algos as learned in class
