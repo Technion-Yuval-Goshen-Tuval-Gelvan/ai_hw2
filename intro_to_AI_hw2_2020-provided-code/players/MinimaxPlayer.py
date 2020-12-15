@@ -1,15 +1,26 @@
 """
 MiniMax Player
 """
+import time
+
 from players.AbstractPlayer import AbstractPlayer
-#TODO: you can import more modules, if needed
+import numpy as np
+from SearchAlgos import State, MiniMax, dummy_utility, successor_states
 
 
 class Player(AbstractPlayer):
     def __init__(self, game_time, penalty_score):
         AbstractPlayer.__init__(self, game_time, penalty_score) # keep the inheritance of the parent's (AbstractPlayer) __init__()
-        #TODO: initialize more fields, if needed, and the Minimax algorithm from SearchAlgos.py
+        self.board = None
+        self.board_min_len = -1
+        self.played_turns = 0
+        self.player_pos = (-1, -1)
+        self.rival_pos = (-1, -1)
+        self.player_score = 0
+        self.rival_score = 0
 
+        self.utility = dummy_utility
+        self.algorithm = MiniMax(self.utility, successor_states,None)
 
     def set_game_params(self, board):
         """Set the game parameters needed for this player.
@@ -19,8 +30,13 @@ class Player(AbstractPlayer):
             - board: np.array, a 2D matrix of the board.
         No output is expected.
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        self.board = np.copy(board)
+        self.board_min_len = np.min(len(board))
+
+        tmp_player_pos = np.where(board == 1)
+        self.player_pos = (tmp_player_pos[0][0], tmp_player_pos[1][0])
+        tmp_rival_pos = np.where(board == 2)
+        self.rival_pos = (tmp_rival_pos[0][0], tmp_rival_pos[1][0])
 
     def make_move(self, time_limit, players_score):
         """Make move with this Player.
@@ -29,9 +45,38 @@ class Player(AbstractPlayer):
         output:
             - direction: tuple, specifing the Player's movement, chosen from self.directions
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        # print("turn", self.played_turns)
+        # print("min len", self.board_min_len)
+        # print(self.board)
 
+        current_state = State(self.board, 1, self.board_min_len - self.played_turns, self.player_pos,
+                              self.rival_pos, self.player_score, self.rival_score, None)
+
+        depth = 1
+        remaining_time = time_limit
+        is_interrupted = False
+        tmp_chosen_direction = None
+        while not is_interrupted:
+            t = time.time()
+            h_val, tmp_chosen_direction, is_interrupted = self.algorithm.search(current_state, depth, 1, remaining_time)
+            if not is_interrupted:
+                chosen_direction = tmp_chosen_direction
+            remaining_time -= (time.time() - t)
+            print("remaining time:", remaining_time)
+            depth += 1
+
+        # print("h_val" , h_val)
+        print("searched depth :", depth-1)
+
+        new_player_pos = (self.player_pos[0] + chosen_direction[0], self.player_pos[1] + chosen_direction[1])
+        self.board[self.player_pos] = -1
+        self.player_score += self.board[new_player_pos]
+        self.player_pos = new_player_pos
+        self.board[new_player_pos] = 1
+
+        # print("rival_score", self.rival_score)
+        # print("player_score", self.player_score)
+        return chosen_direction[0], chosen_direction[1]
 
     def set_rival_move(self, pos):
         """Update your info, given the new position of the rival.
@@ -39,8 +84,11 @@ class Player(AbstractPlayer):
             - pos: tuple, the new position of the rival.
         No output is expected
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        rival_id = self.board[self.rival_pos]
+        self.board[self.rival_pos] = -1
+        self.rival_score += self.board[pos]
+        self.rival_pos = pos
+        self.board[pos] = rival_id
 
 
     def update_fruits(self, fruits_on_board_dict):
@@ -51,9 +99,14 @@ class Player(AbstractPlayer):
                                     'value' is the value of this fruit.
         No output is expected.
         """
-        #TODO: erase the following line and implement this function. In case you choose not to use it, use 'pass' instead of the following line.
-        raise NotImplementedError
+        self.played_turns += 1
+        if self.played_turns == (self.board_min_len + 1):
+            # time to clear fruits
+            self.board[self.board > 2] = 0
 
+        if self.played_turns < 2:
+            for key in fruits_on_board_dict.keys():
+                self.board[key] = fruits_on_board_dict[key]
 
     ########## helper functions in class ##########
     #TODO: add here helper functions in class, if needed
