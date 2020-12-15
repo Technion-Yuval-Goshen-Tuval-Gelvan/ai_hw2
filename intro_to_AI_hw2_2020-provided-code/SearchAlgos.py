@@ -47,7 +47,41 @@ class State:
         return True
 
 
-def successor_states(cur_state):
+def is_penalty(state):
+    """
+    returns 0 if there is no penalty
+    1 if player 1 gets penalty
+    2 if player 2 gets penalty
+    """
+    directions = utils.get_directions()
+    can_move_1 = False
+    for d in directions:
+        i = state.player_1_pos[0] + d[0]
+        j = state.player_1_pos[1] + d[1]
+
+        if 0 <= i < len(state.board) and 0 <= j < len(state.board[0]) and (
+                state.board[i][j] not in [-1, 1, 2]):  # then move is legal
+            can_move_1 = True
+            break
+    can_move_2 = False
+    for d in directions:
+        i = state.player_2_pos[0] + d[0]
+        j = state.player_2_pos[1] + d[1]
+
+        if 0 <= i < len(state.board) and 0 <= j < len(state.board[0]) and (
+                state.board[i][j] not in [-1, 1, 2]):  # then move is legal
+            can_move_2 = True
+            break
+
+    if can_move_1 and not can_move_2:
+        return 2
+    elif not can_move_1 and  can_move_2:
+        return 1
+    else:
+        return 0
+
+
+def successor_states(cur_state, penalty):
     """
         yields successor states
     """
@@ -67,8 +101,15 @@ def successor_states(cur_state):
                 if cur_state.fruit_remaining_turns == 1:
                     new_board[new_board > 2] = 0
 
-                yield State(new_board, 2, (cur_state.fruit_remaining_turns-1), (i,j), cur_state.player_2_pos,
+                new_state = State(new_board, 2, (cur_state.fruit_remaining_turns-1), (i,j), cur_state.player_2_pos,
                             (cur_state.player_1_score + additional_score), cur_state.player_2_score, d)
+                is_pen = is_penalty(new_state)
+                if is_pen == 1:
+                    new_state.player_1_score -= penalty
+                if is_pen == 2:
+                    new_state.player_2_score -= penalty
+                yield new_state
+
     elif cur_state.turn == 2:
         for d in directions:
             i = cur_state.player_2_pos[0] + d[0]
@@ -84,18 +125,36 @@ def successor_states(cur_state):
                 if cur_state.fruit_remaining_turns == 1:
                     new_board[new_board > 2] = 0
 
-                yield State(new_board, 1, (cur_state.fruit_remaining_turns - 1), cur_state.player_1_pos, (i, j),
+                new_state = State(new_board, 1, (cur_state.fruit_remaining_turns - 1), cur_state.player_1_pos, (i, j),
                             cur_state.player_1_score, (cur_state.player_2_score + additional_score), d)
+                is_pen = is_penalty(new_state)
+                if is_pen == 1:
+                    new_state.player_1_score -= penalty
+                if is_pen == 2:
+                    new_state.player_2_score -= penalty
+                yield new_state
 
 
-def dummy_utility(state, deciding_agent):
+##################### heuristics ###################################
+def score_heuristic(state, deciding_agent):
+    """ h1 in the report"""
     if deciding_agent == 1:
         return state.player_1_score
     else:
         return state.player_2_score
 
+def rival_score_heuristic(state, deciding_agent):
+    """ h5 in the report"""
+    if deciding_agent == 1:
+        return -state.player_2_score
+    else:
+        return -state.player_1_score
+
+
+
+##################### heuristics end ################################
 class SearchAlgos:
-    def __init__(self, utility, succ, perform_move, goal=None):
+    def __init__(self, utility, succ, perform_move, heuristic=score_heuristic, goal=None):
         """The constructor for all the search algos.
         You can code these functions as you like to, 
         and use them in MiniMax and AlphaBeta algos as learned in class
@@ -107,6 +166,7 @@ class SearchAlgos:
         self.utility = utility
         self.succ = succ
         self.perform_move = perform_move
+        self.heuristic = heuristic
 
     def search(self, state, depth, maximizing_player):
         pass
@@ -114,7 +174,7 @@ class SearchAlgos:
 
 class MiniMax(SearchAlgos):
 
-    def search(self, state, depth, maximizing_player, remaining_time):
+    def search(self, state, depth, maximizing_player, remaining_time, penalty):
         """Start the MiniMax algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -133,17 +193,17 @@ class MiniMax(SearchAlgos):
                 return state.player_2_score, None, False
 
         if depth == 0:
-            return self.utility(state, maximizing_player), None, False
+            return self.heuristic(state, maximizing_player), None, False
 
         agent_to_move = state.turn
 
         if agent_to_move == maximizing_player:
             cur_max = -np.math.inf
             level_max_direction = None
-            for child in successor_states(state):
+            for child in successor_states(state, penalty):
 
                 v_cost, _, is_interrupted = self.search(child, depth-1, maximizing_player,
-                                        remaining_time - (time.time() - time_this_search_start))
+                                        remaining_time - (time.time() - time_this_search_start), penalty)
                 if is_interrupted:
                     return None, None, True
                 if v_cost > cur_max:
@@ -152,9 +212,9 @@ class MiniMax(SearchAlgos):
             return cur_max, level_max_direction, False
         else:
             cur_min = np.math.inf
-            for child in successor_states(state):
+            for child in successor_states(state, penalty):
                 v_cost, _, is_interrupted = self.search(child, depth-1, maximizing_player,
-                                        remaining_time - (time.time() - time_this_search_start))
+                                        remaining_time - (time.time() - time_this_search_start), penalty)
                 if is_interrupted:
                     return None, None, True
                 if v_cost < cur_min:
