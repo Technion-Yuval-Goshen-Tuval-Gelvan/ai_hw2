@@ -1,0 +1,2 @@
+language = "python3"
+run = "main.py -player1 SimplePlayer -player2 SimplePlayer"

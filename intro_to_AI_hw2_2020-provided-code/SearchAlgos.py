@@ -136,12 +136,18 @@ def successor_states(cur_state, penalty):
 
 
 ##################### heuristics ###################################
+def man_dist(p1, p2):
+    """helper func to calculate manheten distance beetween two points"""
+    return np.absolute(p1[0] - p2[0]) + np.absolute(p1[1] - p2[1])
+
+
 def score_heuristic(state, deciding_agent):
     """ h1 in the report"""
     if deciding_agent == 1:
         return state.player_1_score
     else:
         return state.player_2_score
+
 
 def rival_score_heuristic(state, deciding_agent):
     """ h5 in the report"""
@@ -150,6 +156,18 @@ def rival_score_heuristic(state, deciding_agent):
     else:
         return -state.player_1_score
 
+def squares_in_posetion_heuristic(state, deciding_agent):
+    """ h### in the report"""
+    # returns list of pairs for cordinates where there are empty squares
+    empty_squares_and_fruits_loc = np.argwhere(
+        np.logical_or(state.board == 0, state.board > 2))
+
+    count_closest_to_1 = sum(man_dist(sq, state.player_1_pos) < man_dist(sq, state.player_2_pos) for sq in empty_squares_and_fruits_loc)
+
+    if deciding_agent == 1:
+        return count_closest_to_1
+    else:
+        return len(empty_squares_and_fruits_loc) - count_closest_to_1
 
 
 ##################### heuristics end ################################
