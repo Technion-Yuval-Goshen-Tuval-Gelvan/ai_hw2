@@ -5,7 +5,7 @@ import time
 
 from players.AbstractPlayer import AbstractPlayer
 import numpy as np
-from SearchAlgos import State, MiniMax, score_heuristic, successor_states
+from SearchAlgos import State, MiniMax, sum_heuristic, successor_states
 
 
 class Player(AbstractPlayer):
@@ -19,7 +19,7 @@ class Player(AbstractPlayer):
         self.player_score = 0
         self.rival_score = 0
 
-        self.heuristic = score_heuristic
+        self.heuristic = sum_heuristic
         self.algorithm = MiniMax(self.heuristic, successor_states, None)
 
     def set_game_params(self, board):
@@ -63,7 +63,7 @@ class Player(AbstractPlayer):
             if not is_interrupted:
                 chosen_direction = tmp_chosen_direction
             remaining_time -= (time.time() - t)
-            print("remaining time:", remaining_time)
+            # print("remaining time:", remaining_time)
             depth += 1
 
         # print("h_val" , h_val)

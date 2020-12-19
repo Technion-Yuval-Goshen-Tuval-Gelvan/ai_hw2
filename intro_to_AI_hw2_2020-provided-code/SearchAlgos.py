@@ -156,8 +156,8 @@ def rival_score_heuristic(state, deciding_agent):
     else:
         return -state.player_1_score
 
-def squares_in_posetion_heuristic(state, deciding_agent):
-    """ h### in the report"""
+def squares_in_possession_heuristic(state, deciding_agent):
+    """ h3 in the report"""
     # returns list of pairs for cordinates where there are empty squares
     empty_squares_and_fruits_loc = np.argwhere(
         np.logical_or(state.board == 0, state.board > 2))
@@ -170,7 +170,29 @@ def squares_in_posetion_heuristic(state, deciding_agent):
         return len(empty_squares_and_fruits_loc) - count_closest_to_1
 
 
+def potential_score_heuristic(state, deciding_agent):
+    """ h3 in the report"""
+    fruits_loc = np.argwhere(state.board > 2)
+
+    if deciding_agent == 1:
+        player_position = state.player_1_pos
+    else:
+        player_position = state.player_2_pos
+
+    return sum(state.board[tuple(fr)]/man_dist(fr, player_position)
+               for fr in fruits_loc
+               if man_dist(fr, state.player_position) <= state.fruit_remaining_turns)
+
+
+def sum_heuristic(state, deciding_agent):
+    return (score_heuristic(state, deciding_agent)
+            + rival_score_heuristic(state, deciding_agent)
+            + squares_in_possession_heuristic(state, deciding_agent)
+            + potential_score_heuristic(state, deciding_agent))
+
 ##################### heuristics end ################################
+
+
 class SearchAlgos:
     def __init__(self, utility, succ, perform_move, heuristic=score_heuristic, goal=None):
         """The constructor for all the search algos.
@@ -242,14 +264,66 @@ class MiniMax(SearchAlgos):
 
 class AlphaBeta(SearchAlgos):
 
-    def search(self, state, depth, maximizing_player, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+    def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
         :param maximizing_player: Whether this is a max node (True) or a min node (False).
         :param alpha: alpha value
         :param: beta: beta value
-        :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode)
+        :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode, isInterupted)
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        if remaining_time < INTERRUPT_TIME:
+            return None, None, True
+
+        time_this_search_start = time.time()
+
+        if state.is_goal():
+            if maximizing_player == 1:
+                return state.player_1_score, None, False
+            else:
+                return state.player_2_score, None, False
+
+        if depth == 0:
+            return self.heuristic(state, maximizing_player), None, False
+
+        agent_to_move = state.turn
+
+        if agent_to_move == maximizing_player:
+            cur_max = -np.math.inf
+            level_max_direction = None
+            for child in successor_states(state, penalty):
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty,
+                                                        alpha,
+                                                        beta)
+                if is_interrupted:
+                    return None, None, True
+                if v_cost > cur_max:
+                    cur_max = v_cost
+                    level_max_direction = child.direction_from_parent
+                if cur_max > alpha:
+                    alpha = cur_max
+                if cur_max >= beta:
+                    return np.math.inf, None, False
+            return cur_max, level_max_direction, False
+
+        else:
+            cur_min = np.math.inf
+            for child in successor_states(state, penalty):
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty,
+                                                        alpha,
+                                                        beta)
+                if is_interrupted:
+                    return None, None, True
+                if v_cost < cur_min:
+                    cur_min = v_cost
+                if cur_min < beta:
+                    beta = cur_min
+                if cur_min <= alpha:
+                    return -np.math.inf, None, False
+            return cur_min, None, False
+
