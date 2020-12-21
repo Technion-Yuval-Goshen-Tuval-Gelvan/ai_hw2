@@ -8,7 +8,7 @@ import numpy as np
 import networkx as nx
 
 
-INTERRUPT_TIME = 0.01
+INTERRUPT_TIME = 0.1
 
 class State:
     def __init__(self, board, turn, fruit_remaining_turns, player_1_pos,
@@ -182,21 +182,21 @@ def potential_score_heuristic(state, deciding_agent):
 
     return sum(state.board[tuple(fr)]/man_dist(fr, player_position)
                for fr in fruits_loc
-               if man_dist(fr, state.player_position) <= state.fruit_remaining_turns)
+               if man_dist(fr, player_position) <= state.fruit_remaining_turns)
 
 
 def connected_components_heuristic(state, deciding_agent):
     squares = np.argwhere(state.board != -1)
 
-    right_edges = [(tuple(s), (s[0], s[1]+1)) for s in squares if [s[0], s[1]+1] in squares]
-    left_edges = [(tuple(s), (s[0], s[1]-1)) for s in squares if [s[0], s[1]-1] in squares]
-    up_edges = [(tuple(s), (s[0]-1, s[1])) for s in squares if [s[0]-1, s[1]] in squares]
-    down_edges = [(tuple(s), (s[0]+1, s[1])) for s in squares if [s[0]+1, s[1]] in squares]
+    right_edges = [(tuple(s), (s[0], s[1]+1)) for s in squares if [s[0], s[1]+1] in squares.tolist()]
+    left_edges = [(tuple(s), (s[0], s[1]-1)) for s in squares if [s[0], s[1]-1] in squares.tolist()]
+    up_edges = [(tuple(s), (s[0]-1, s[1])) for s in squares if [s[0]-1, s[1]] in squares.tolist()]
+    down_edges = [(tuple(s), (s[0]+1, s[1])) for s in squares if [s[0]+1, s[1]] in squares.tolist()]
 
     G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
 
-    return nx.node_connected_components(G, state.player_1_pos), 
-    nx.node_connected_components(G, state.player_2_pos)
+    return len(nx.node_connected_component(G, state.player_1_pos)),\
+           len(nx.node_connected_component(G, state.player_2_pos))
 
 
 def sum_heuristic(state, deciding_agent):
@@ -204,6 +204,23 @@ def sum_heuristic(state, deciding_agent):
             + rival_score_heuristic(state, deciding_agent)
             + squares_in_possession_heuristic(state, deciding_agent)
             + potential_score_heuristic(state, deciding_agent))
+
+
+def phases_sum_heuristic(state, deciding_agent):
+    print("frt = ", state.fruit_remaining_turns)
+    if state.fruit_remaining_turns >= 0:
+        return (score_heuristic(state, deciding_agent)
+            + rival_score_heuristic(state, deciding_agent)
+            + potential_score_heuristic(state, deciding_agent))
+    else:
+        player1_cc, player2_cc = connected_components_heuristic(state, deciding_agent)
+        cc_h = player1_cc - player2_cc
+        print("here", player1_cc, player2_cc)
+        if deciding_agent == 2:
+            cc_h = -cc_h
+        return (len(state.board[0]) * cc_h
+                + squares_in_possession_heuristic(state, deciding_agent))
+
 
 ##################### heuristics end ################################
 

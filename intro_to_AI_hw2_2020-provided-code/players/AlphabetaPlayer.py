@@ -5,7 +5,7 @@ import time
 
 from players.AbstractPlayer import AbstractPlayer
 import numpy as np
-from SearchAlgos import State, AlphaBeta, sum_heuristic, successor_states
+from SearchAlgos import State, AlphaBeta, sum_heuristic, successor_states, phases_sum_heuristic
 
 
 class Player(AbstractPlayer):
@@ -20,8 +20,11 @@ class Player(AbstractPlayer):
         self.player_score = 0
         self.rival_score = 0
 
-        self.heuristic = sum_heuristic
-        self.algorithm = AlphaBeta(self.heuristic, successor_states, None)
+        self.heuristic = phases_sum_heuristic
+        self.algorithm = AlphaBeta(utility=None,
+                                   succ=successor_states,
+                                   perform_move=None,
+                                   heuristic=self.heuristic)
 
     def set_game_params(self, board):
         """Set the game parameters needed for this player.
