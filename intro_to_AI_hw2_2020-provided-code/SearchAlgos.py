@@ -5,6 +5,7 @@ import time
 import utils
 from utils import ALPHA_VALUE_INIT, BETA_VALUE_INIT
 import numpy as np
+import networkx as nx
 
 
 INTERRUPT_TIME = 0.01
@@ -182,6 +183,20 @@ def potential_score_heuristic(state, deciding_agent):
     return sum(state.board[tuple(fr)]/man_dist(fr, player_position)
                for fr in fruits_loc
                if man_dist(fr, state.player_position) <= state.fruit_remaining_turns)
+
+
+def connected_components_heuristic(state, deciding_agent):
+    squares = np.argwhere(state.board != -1)
+
+    right_edges = [(tuple(s), (s[0], s[1]+1)) for s in squares if [s[0], s[1]+1] in squares]
+    left_edges = [(tuple(s), (s[0], s[1]-1)) for s in squares if [s[0], s[1]-1] in squares]
+    up_edges = [(tuple(s), (s[0]-1, s[1])) for s in squares if [s[0]-1, s[1]] in squares]
+    down_edges = [(tuple(s), (s[0]+1, s[1])) for s in squares if [s[0]+1, s[1]] in squares]
+
+    G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+
+    return nx.node_connected_components(G, state.player_1_pos), 
+    nx.node_connected_components(G, state.player_2_pos)
 
 
 def sum_heuristic(state, deciding_agent):
