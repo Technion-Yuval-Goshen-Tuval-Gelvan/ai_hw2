@@ -8,7 +8,7 @@ import numpy as np
 import networkx as nx
 
 
-INTERRUPT_TIME = 0.1
+INTERRUPT_TIME = 0.25
 
 class State:
     def __init__(self, board, turn, fruit_remaining_turns, player_1_pos,
@@ -194,6 +194,11 @@ def connected_components_heuristic(state, deciding_agent):
     down_edges = [(tuple(s), (s[0]+1, s[1])) for s in squares if [s[0]+1, s[1]] in squares.tolist()]
 
     G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+    G.add_node(state.player_1_pos)
+    G.add_node(state.player_2_pos)
+    # print(state.player_1_pos, state.player_2_pos)
+    # print(state.board)
+    # print(right_edges + left_edges + down_edges + up_edges)
 
     return len(nx.node_connected_component(G, state.player_1_pos)),\
            len(nx.node_connected_component(G, state.player_2_pos))
@@ -207,7 +212,6 @@ def sum_heuristic(state, deciding_agent):
 
 
 def phases_sum_heuristic(state, deciding_agent):
-    print("frt = ", state.fruit_remaining_turns)
     if state.fruit_remaining_turns >= 0:
         return (score_heuristic(state, deciding_agent)
             + rival_score_heuristic(state, deciding_agent)
@@ -215,11 +219,15 @@ def phases_sum_heuristic(state, deciding_agent):
     else:
         player1_cc, player2_cc = connected_components_heuristic(state, deciding_agent)
         cc_h = player1_cc - player2_cc
-        print("here", player1_cc, player2_cc)
         if deciding_agent == 2:
             cc_h = -cc_h
-        return (len(state.board[0]) * cc_h
-                + squares_in_possession_heuristic(state, deciding_agent))
+
+        # change to - if they are in the same cc : use squares in possesions and enemy cc size
+        # else - use just current player cc size, or even something simpler
+
+        return (10*len(state.board[0]) * cc_h
+                #+ squares_in_possession_heuristic(state, deciding_agent)
+                + score_heuristic(state, deciding_agent))
 
 
 ##################### heuristics end ################################
@@ -303,7 +311,7 @@ class AlphaBeta(SearchAlgos):
         :param maximizing_player: Whether this is a max node (True) or a min node (False).
         :param alpha: alpha value
         :param: beta: beta value
-        :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode, isInterupted)
+        :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode, isInterrupted)
         """
         if remaining_time < INTERRUPT_TIME:
             return None, None, True
