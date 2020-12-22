@@ -157,6 +157,7 @@ def rival_score_heuristic(state, deciding_agent):
     else:
         return -state.player_1_score
 
+
 def squares_in_possession_heuristic(state, deciding_agent):
     """ h3 in the report"""
     # returns list of pairs for cordinates where there are empty squares
@@ -228,6 +229,43 @@ def phases_sum_heuristic(state, deciding_agent):
         return (10*len(state.board[0]) * cc_h
                 #+ squares_in_possession_heuristic(state, deciding_agent)
                 + score_heuristic(state, deciding_agent))
+
+
+def compete_heuristic(state, deciding_agent, heuristic_params):
+    """
+    everithing is calculated in this single function to save time
+    heuristic_params is dictionary with the parameters and weights
+    params:
+    "isShortVersion" - calculate the short version
+    "maxVision" - how far from the player to look
+    """
+
+    if deciding_agent == 1:
+        player_pos = state.player_1_pos
+    else:
+        player_pos = state.player_2_pos
+
+    # set vision indices:
+    i_min = np.max([0, player_pos[0] - heuristic_params["maxVision"]])
+    i_max = np.min([state.board.shape[0]-1, player_pos[0] + heuristic_params["maxVision"]])
+    j_min = np.max([0, player_pos[1] - heuristic_params["maxVision"]])
+    j_max = np.min([state.board.shape[1]-1, player_pos[1] + heuristic_params["maxVision"]])
+    # create graph:
+    # TODO: only if long version
+    # TODO: use max vision and board copy
+
+    squares = np.argwhere(state.board != -1)
+
+
+    right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
+    left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
+    up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
+    down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
+
+    G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+    G.add_node(state.player_1_pos)
+    G.add_node(state.player_2_pos)
+
 
 
 ##################### heuristics end ################################
@@ -303,7 +341,6 @@ class MiniMax(SearchAlgos):
 
 
 class AlphaBeta(SearchAlgos):
-
     def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
@@ -326,6 +363,77 @@ class AlphaBeta(SearchAlgos):
 
         if depth == 0:
             return self.heuristic(state, maximizing_player), None, False
+
+        agent_to_move = state.turn
+
+        if agent_to_move == maximizing_player:
+            cur_max = -np.math.inf
+            level_max_direction = None
+            for child in successor_states(state, penalty):
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty,
+                                                        alpha,
+                                                        beta)
+                if is_interrupted:
+                    return None, None, True
+                if v_cost > cur_max:
+                    cur_max = v_cost
+                    level_max_direction = child.direction_from_parent
+                if cur_max > alpha:
+                    alpha = cur_max
+                if cur_max >= beta:
+                    return np.math.inf, None, False
+            return cur_max, level_max_direction, False
+
+        else:
+            cur_min = np.math.inf
+            for child in successor_states(state, penalty):
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty,
+                                                        alpha,
+                                                        beta)
+                if is_interrupted:
+                    return None, None, True
+                if v_cost < cur_min:
+                    cur_min = v_cost
+                if cur_min < beta:
+                    beta = cur_min
+                if cur_min <= alpha:
+                    return -np.math.inf, None, False
+            return cur_min, None, False
+
+
+class CompeteAlgo(SearchAlgos):
+    """algorithem for the Competition, mostly like AlphaBeta but uses weights"""
+    def __init__(self, utility, succ, perform_move, heuristic_params, heuristic, goal=None):
+        SearchAlgos.__init__(self, utility, succ, perform_move, heuristic, goal)
+        self.heuristic_params = heuristic_params
+
+
+    def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+        """Start the AlphaBeta algorithm.
+        :param state: The state to start from.
+        :param depth: The maximum allowed depth for the algorithm.
+        :param maximizing_player: Whether this is a max node (True) or a min node (False).
+        :param alpha: alpha value
+        :param: beta: beta value
+        :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode, isInterrupted)
+        """
+        if remaining_time < INTERRUPT_TIME:
+            return None, None, True
+
+        time_this_search_start = time.time()
+
+        if state.is_goal():
+            if maximizing_player == 1:
+                return state.player_1_score, None, False
+            else:
+                return state.player_2_score, None, False
+
+        if depth == 0:
+            return self.heuristic(state, maximizing_player, self.heuristic_params), None, False
 
         agent_to_move = state.turn
 
