@@ -380,9 +380,16 @@ class AlphaBeta(SearchAlgos):
 
         if state.is_goal():
             if maximizing_player == 1:
-                return state.player_1_score, None, False
+                if state.player_1_score > state.player_2_score:
+                    return np.math.inf #player wins
+                else:
+                    return state.player_1_score, None, False
             else:
-                return state.player_2_score, None, False
+                if state.player_1_score < state.player_2_score:
+                    return np.math.inf
+                else:
+                    return state.player_2_score, None, False
+
 
         if depth == 0:
             return self.heuristic(state, maximizing_player), None, False
