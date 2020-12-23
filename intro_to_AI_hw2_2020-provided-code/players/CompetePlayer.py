@@ -1,6 +1,10 @@
 """
 Player for the competition
 """
+#TODO: change vision during the game
+
+
+
 from players.AbstractPlayer import AbstractPlayer
 #TODO: you can import more modules, if needed
 

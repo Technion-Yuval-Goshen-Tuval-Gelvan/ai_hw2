@@ -216,19 +216,20 @@ def phases_sum_heuristic(state, deciding_agent):
     if state.fruit_remaining_turns >= 0:
         return (score_heuristic(state, deciding_agent)
             + rival_score_heuristic(state, deciding_agent)
-            + potential_score_heuristic(state, deciding_agent))
+            + potential_score_heuristic(state, deciding_agent)
+            + squares_in_possession_heuristic(state, deciding_agent))
     else:
         player1_cc, player2_cc = connected_components_heuristic(state, deciding_agent)
         cc_h = player1_cc - player2_cc
         if deciding_agent == 2:
             cc_h = -cc_h
+        
+        return (50 * cc_h
+        + squares_in_possession_heuristic(state, deciding_agent)
+        + score_heuristic(state, deciding_agent)
+        + rival_score_heuristic(state, deciding_agent))
 
-        # change to - if they are in the same cc : use squares in possesions and enemy cc size
-        # else - use just current player cc size, or even something simpler
 
-        return (10*len(state.board[0]) * cc_h
-                #+ squares_in_possession_heuristic(state, deciding_agent)
-                + score_heuristic(state, deciding_agent))
 
 
 def compete_heuristic(state, deciding_agent, heuristic_params):
@@ -242,20 +243,36 @@ def compete_heuristic(state, deciding_agent, heuristic_params):
 
     if deciding_agent == 1:
         player_pos = state.player_1_pos
+        rival_pos = state.player_2_pos
+        player_id = 1
+        rival_id = 2
     else:
         player_pos = state.player_2_pos
+        rival_pos = state.player_1_pos
+        player_id = 2
+        rival_id = 1
 
-    # set vision indices:
-    i_min = np.max([0, player_pos[0] - heuristic_params["maxVision"]])
-    i_max = np.min([state.board.shape[0]-1, player_pos[0] + heuristic_params["maxVision"]])
-    j_min = np.max([0, player_pos[1] - heuristic_params["maxVision"]])
-    j_max = np.min([state.board.shape[1]-1, player_pos[1] + heuristic_params["maxVision"]])
+    # set players vision:
+    # vision is set acording to the parameter but makes sure that
+    # rival will be in sight and at least one block after him
+    i_min = np.min([player_pos[0] - heuristic_params["maxVision"], rival_pos[0] - 1])
+    i_min = np.max([0, i_min])
+    i_max = np.max([player_pos[0] + heuristic_params["maxVision"], rival_pos[0] + 1])
+    i_max = np.min([state.board.shape[0]-1, i_max])
+
+    j_min = np.min([player_pos[1] - heuristic_params["maxVision"], rival_pos[1] - 1])
+    j_min = np.max([0, j_min])
+    j_max = np.max([player_pos[1] + heuristic_params["maxVision"], rival_pos[1] + 1])
+    j_max = np.min([state.board.shape[1]-1, j_max])
+
+    player_vision = state.board[i_min:i_max+1, j_min:j_max+1]
+    player_pos_in_vision = tuple(np.argwhere(player_vision == player_id)[0])
+    rival_pos_in_vision = tuple(np.argwhere(player_vision == rival_id)[0])
+
     # create graph:
     # TODO: only if long version
-    # TODO: use max vision and board copy
 
-    squares = np.argwhere(state.board != -1)
-
+    squares = np.argwhere(player_vision != -1)
 
     right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
     left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
@@ -263,8 +280,8 @@ def compete_heuristic(state, deciding_agent, heuristic_params):
     down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
 
     G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
-    G.add_node(state.player_1_pos)
-    G.add_node(state.player_2_pos)
+    G.add_node(state.player_pos_in_vision)
+    G.add_node(state.rival_pos_in_vision)
 
 
 
