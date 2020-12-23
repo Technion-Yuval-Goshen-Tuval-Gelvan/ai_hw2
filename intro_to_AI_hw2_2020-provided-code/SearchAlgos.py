@@ -324,7 +324,7 @@ class MiniMax(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return np.math.inf #player wins
+                    return np.math.inf, None, False #player wins
                 else:
                     return state.player_1_score, None, False
             else:
@@ -381,7 +381,7 @@ class AlphaBeta(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return np.math.inf #player wins
+                    return np.math.inf, None, False #player wins
                 else:
                     return state.player_1_score, None, False
             else:
