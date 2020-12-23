@@ -9,6 +9,7 @@ import networkx as nx
 
 
 INTERRUPT_TIME = 0.25
+ALMOST_INF = 300000
 
 class State:
     def __init__(self, board, turn, fruit_remaining_turns, player_1_pos,
@@ -324,12 +325,12 @@ class MiniMax(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return np.math.inf, None, False #player wins
+                    return ALMOST_INF, None, False #player wins
                 else:
                     return state.player_1_score, None, False
             else:
                 if state.player_1_score < state.player_2_score:
-                    return np.math.inf
+                    ALMOST_INF, None, False
                 else:
                     return state.player_2_score, None, False
 
@@ -381,12 +382,12 @@ class AlphaBeta(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return np.math.inf, None, False #player wins
+                    return ALMOST_INF, None, False #player wins
                 else:
                     return state.player_1_score, None, False
             else:
                 if state.player_1_score < state.player_2_score:
-                    return np.math.inf
+                    return ALMOST_INF, None, False
                 else:
                     return state.player_2_score, None, False
 
