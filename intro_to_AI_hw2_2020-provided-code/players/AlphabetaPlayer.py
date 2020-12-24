@@ -66,13 +66,13 @@ class Player(AbstractPlayer):
                                                                                 remaining_time, self.penalty_score)
             if not is_interrupted:
                 chosen_direction = tmp_chosen_direction
+                chosen_h = h_val
             remaining_time -= (time.time() - t)
             # print("remaining time:", remaining_time)
             depth += 1
 
-        # print("h_val" , h_val)
         print("searched depth :", depth - 1)
-
+        print("h:", chosen_h)
         new_player_pos = (self.player_pos[0] + chosen_direction[0], self.player_pos[1] + chosen_direction[1])
         self.board[self.player_pos] = -1
         self.player_score += self.board[new_player_pos]
