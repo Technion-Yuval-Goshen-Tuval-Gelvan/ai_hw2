@@ -11,8 +11,8 @@ import networkx as nx
 INTERRUPT_TIME = 0.25
 
 class State:
-    def __init__(self, board, turn, fruit_remaining_turns, player_1_pos,
-                 player_2_pos, player_1_score, player_2_score, direction_from_parent):
+    def __init__(self, board: object, turn: object, fruit_remaining_turns: object, player_1_pos: object,
+                 player_2_pos: object, player_1_score: object, player_2_score: object, direction_from_parent: object) -> object:
         """
         turn is 1 or 2
         """
