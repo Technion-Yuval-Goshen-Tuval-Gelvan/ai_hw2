@@ -5,7 +5,7 @@ import time
 
 from players.AbstractPlayer import AbstractPlayer
 import numpy as np
-from SearchAlgos import State, AlphaBeta, sum_heuristic, successor_states, phases_sum_heuristic
+from SearchAlgos import State, AlphaBeta, connected_components_heuristic, successor_states, phases_sum_heuristic
 
 
 
@@ -52,12 +52,56 @@ class Player(AbstractPlayer):
         output:
             - direction: tuple, specifing the Player's movement, chosen from self.directions
         """
+        turn_start_time = time.time()
+
         current_state = State(self.board, 1, self.board_min_len - self.played_turns, self.player_pos,
                               self.rival_pos, self.player_score, self.rival_score, None)
 
-        if current_state.fruit_remaining_turns > 0:
 
+        if current_state.fruit_remaining_turns > 0: # fruit stage
+            # calculate average time for turn assuming all squares are reachable
+            expected_remaining_turns = len(np.argwhere(np.logical_or(
+                self.board == 0, self.board > 2))) / 2
+            avg_turn_time = self.game_remaining_time / expected_remaining_turns
+            turn_time_limit = avg_turn_time
+            if self.played_turns < (self.board_min_len / 4):
+                turn_time_limit *= 4
 
+        else: # no fruit stage
+            # calculate average time for turn, use the following heuristic because it
+            # it does exactly what we need
+            player_cc, rival_cc = connected_components_heuristic(current_state, 1)
+            expected_remaining_turns = np.min([player_cc, rival_cc])
+            avg_turn_time = avg_turn_time = self.game_remaining_time / expected_remaining_turns
+            turn_time_limit = avg_turn_time
+
+        print("avg remaining turn time", avg_turn_time)
+
+        depth = 1
+        remaining_turn_time = turn_time_limit
+        last_iteration_time = 0
+        while remaining_turn_time > last_iteration_time*3 and depth < 50:
+            t = time.time()
+            #############################
+            h_val, tmp_chosen_direction, is_interrupted = self.algorithm.search(current_state, depth,
+                                                                   1, self.game_remaining_time - 0.25 ,
+                                                                   self.penalty_score)
+            if not is_interrupted:  # never be interupted in this player
+                chosen_direction = tmp_chosen_direction
+                chosen_h = h_val
+            last_iteration_time = time.time() - t
+            remaining_turn_time -= last_iteration_time
+            depth += 1
+
+        print("searched depth :", depth - 1)
+        new_player_pos = (self.player_pos[0] + chosen_direction[0], self.player_pos[1] + chosen_direction[1])
+        self.board[self.player_pos] = -1
+        self.player_score += self.board[new_player_pos]
+        self.player_pos = new_player_pos
+        self.board[new_player_pos] = 1
+
+        self.game_remaining_time -= time.time() - turn_start_time
+        return chosen_direction[0], chosen_direction[1]
 
     def set_rival_move(self, pos):
         """Update your info, given the new position of the rival.
@@ -79,8 +123,6 @@ class Player(AbstractPlayer):
                                     'value' is the value of this fruit.
         No output is expected.
         """
-        #TODO: erase the following line and implement this function. In case you choose not to use this function, 
-        # use 'pass' instead of the following line.
         self.played_turns += 1
         if self.played_turns == (self.board_min_len + 1):
             # time to clear fruits

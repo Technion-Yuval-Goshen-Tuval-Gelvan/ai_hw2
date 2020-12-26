@@ -7,13 +7,14 @@ from utils import ALPHA_VALUE_INIT, BETA_VALUE_INIT
 import numpy as np
 import networkx as nx
 
-
 INTERRUPT_TIME = 0.25
-ALMOST_INF = 300000
+ALMOST_INF = 3000000
+
 
 class State:
     def __init__(self, board: object, turn: object, fruit_remaining_turns: object, player_1_pos: object,
-                 player_2_pos: object, player_1_score: object, player_2_score: object, direction_from_parent: object) -> object:
+                 player_2_pos: object, player_1_score: object, player_2_score: object,
+                 direction_from_parent: object) -> object:
         """
         turn is 1 or 2
         """
@@ -77,7 +78,7 @@ def is_penalty(state):
 
     if can_move_1 and not can_move_2:
         return 2
-    elif not can_move_1 and  can_move_2:
+    elif not can_move_1 and can_move_2:
         return 1
     else:
         return 0
@@ -103,8 +104,8 @@ def successor_states(cur_state, penalty):
                 if cur_state.fruit_remaining_turns == 1:
                     new_board[new_board > 2] = 0
 
-                new_state = State(new_board, 2, (cur_state.fruit_remaining_turns-1), (i,j), cur_state.player_2_pos,
-                            (cur_state.player_1_score + additional_score), cur_state.player_2_score, d)
+                new_state = State(new_board, 2, (cur_state.fruit_remaining_turns - 1), (i, j), cur_state.player_2_pos,
+                                  (cur_state.player_1_score + additional_score), cur_state.player_2_score, d)
                 is_pen = is_penalty(new_state)
                 if is_pen == 1:
                     new_state.player_1_score -= penalty
@@ -128,7 +129,7 @@ def successor_states(cur_state, penalty):
                     new_board[new_board > 2] = 0
 
                 new_state = State(new_board, 1, (cur_state.fruit_remaining_turns - 1), cur_state.player_1_pos, (i, j),
-                            cur_state.player_1_score, (cur_state.player_2_score + additional_score), d)
+                                  cur_state.player_1_score, (cur_state.player_2_score + additional_score), d)
                 is_pen = is_penalty(new_state)
                 if is_pen == 1:
                     new_state.player_1_score -= penalty
@@ -165,7 +166,8 @@ def squares_in_possession_heuristic(state, deciding_agent):
     empty_squares_and_fruits_loc = np.argwhere(
         np.logical_or(state.board == 0, state.board > 2))
 
-    count_closest_to_1 = sum(man_dist(sq, state.player_1_pos) < man_dist(sq, state.player_2_pos) for sq in empty_squares_and_fruits_loc)
+    count_closest_to_1 = sum(
+        man_dist(sq, state.player_1_pos) < man_dist(sq, state.player_2_pos) for sq in empty_squares_and_fruits_loc)
 
     if deciding_agent == 1:
         return count_closest_to_1
@@ -182,7 +184,7 @@ def potential_score_heuristic(state, deciding_agent):
     else:
         player_position = state.player_2_pos
 
-    return sum(state.board[tuple(fr)]/man_dist(fr, player_position)
+    return sum(state.board[tuple(fr)] / man_dist(fr, player_position)
                for fr in fruits_loc
                if man_dist(fr, player_position) <= state.fruit_remaining_turns)
 
@@ -190,10 +192,10 @@ def potential_score_heuristic(state, deciding_agent):
 def connected_components_heuristic(state, deciding_agent):
     squares = np.argwhere(state.board != -1)
 
-    right_edges = [(tuple(s), (s[0], s[1]+1)) for s in squares if [s[0], s[1]+1] in squares.tolist()]
-    left_edges = [(tuple(s), (s[0], s[1]-1)) for s in squares if [s[0], s[1]-1] in squares.tolist()]
-    up_edges = [(tuple(s), (s[0]-1, s[1])) for s in squares if [s[0]-1, s[1]] in squares.tolist()]
-    down_edges = [(tuple(s), (s[0]+1, s[1])) for s in squares if [s[0]+1, s[1]] in squares.tolist()]
+    right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
+    left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
+    up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
+    down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
 
     G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
     G.add_node(state.player_1_pos)
@@ -202,7 +204,7 @@ def connected_components_heuristic(state, deciding_agent):
     # print(state.board)
     # print(right_edges + left_edges + down_edges + up_edges)
 
-    return len(nx.node_connected_component(G, state.player_1_pos)),\
+    return len(nx.node_connected_component(G, state.player_1_pos)), \
            len(nx.node_connected_component(G, state.player_2_pos))
 
 
@@ -216,42 +218,38 @@ def sum_heuristic(state, deciding_agent):
 def phases_sum_heuristic(state, deciding_agent):
     if state.fruit_remaining_turns >= 0:
         return (score_heuristic(state, deciding_agent)
-            + rival_score_heuristic(state, deciding_agent)
-            + potential_score_heuristic(state, deciding_agent)
-            + squares_in_possession_heuristic(state, deciding_agent))
+                + rival_score_heuristic(state, deciding_agent)
+                + potential_score_heuristic(state, deciding_agent)
+                + squares_in_possession_heuristic(state, deciding_agent))
     else:
         player1_cc, player2_cc = connected_components_heuristic(state, deciding_agent)
         cc_h = player1_cc - player2_cc
         if deciding_agent == 2:
             cc_h = -cc_h
-        
+
         return (50 * cc_h
-        + squares_in_possession_heuristic(state, deciding_agent)
-        + score_heuristic(state, deciding_agent)
-        + rival_score_heuristic(state, deciding_agent))
-
-
+                + squares_in_possession_heuristic(state, deciding_agent)
+                + score_heuristic(state, deciding_agent)
+                + rival_score_heuristic(state, deciding_agent))
 
 
 def compete_heuristic(state, deciding_agent, heuristic_params):
     """
-    everithing is calculated in this single function to save time
+    everithing is calculated in this single function to save time of function call overhead,
+    even if code is duplicated
+
     heuristic_params is dictionary with the parameters and weights
     params:
     "isShortVersion" - calculate the short version
     "maxVision" - how far from the player to look
+    "ccWeight", "possessionWeight", "potentialScoreWeight" - heuristics weights
     """
+    h = 0
 
-    if deciding_agent == 1:
-        player_pos = state.player_1_pos
-        rival_pos = state.player_2_pos
-        player_id = 1
-        rival_id = 2
-    else:
-        player_pos = state.player_2_pos
-        rival_pos = state.player_1_pos
-        player_id = 2
-        rival_id = 1
+    player_pos = state.player_1_pos
+    rival_pos = state.player_2_pos
+    player_id = 1
+    rival_id = 2
 
     # set players vision:
     # vision is set acording to the parameter but makes sure that
@@ -259,31 +257,91 @@ def compete_heuristic(state, deciding_agent, heuristic_params):
     i_min = np.min([player_pos[0] - heuristic_params["maxVision"], rival_pos[0] - 1])
     i_min = np.max([0, i_min])
     i_max = np.max([player_pos[0] + heuristic_params["maxVision"], rival_pos[0] + 1])
-    i_max = np.min([state.board.shape[0]-1, i_max])
+    i_max = np.min([state.board.shape[0] - 1, i_max])
 
     j_min = np.min([player_pos[1] - heuristic_params["maxVision"], rival_pos[1] - 1])
     j_min = np.max([0, j_min])
     j_max = np.max([player_pos[1] + heuristic_params["maxVision"], rival_pos[1] + 1])
-    j_max = np.min([state.board.shape[1]-1, j_max])
+    j_max = np.min([state.board.shape[1] - 1, j_max])
 
-    player_vision = state.board[i_min:i_max+1, j_min:j_max+1]
+    player_vision = state.board[i_min:i_max + 1, j_min:j_max + 1]
     player_pos_in_vision = tuple(np.argwhere(player_vision == player_id)[0])
     rival_pos_in_vision = tuple(np.argwhere(player_vision == rival_id)[0])
 
-    # create graph:
-    # TODO: only if long version
+    if state.fruit_remaining_turns >= 1:
+        # there are fruit for at least 2 turns, use only first phase heuristics
+        h += state.player_1_score - state.player_2_score
 
-    squares = np.argwhere(player_vision != -1)
+        # potential score heuristic :
+        fruits_loc = np.argwhere(state.board > 2)
+        h += heuristic_params["potentialScoreWeight"] * \
+             sum(state.board[tuple(fr)] / man_dist(fr, player_pos)
+                 for fr in fruits_loc
+                 if man_dist(fr, player_pos) <= state.fruit_remaining_turns)
 
-    right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
-    left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
-    up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
-    down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
+    elif 0 <= state.fruit_remaining_turns <= 1:
+        # there are fruit but for less then 2 turns, use both heuristics
+        h += state.player_1_score - state.player_2_score
 
-    G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
-    G.add_node(state.player_pos_in_vision)
-    G.add_node(state.rival_pos_in_vision)
+        # potential score heuristic :
+        fruits_loc = np.argwhere(state.board > 2)
+        h += heuristic_params["potentialScoreWeight"] * \
+             sum(state.board[tuple(fr)] / man_dist(fr, player_pos)
+                 for fr in fruits_loc
+                 if man_dist(fr, player_pos) <= state.fruit_remaining_turns)
 
+        # square in possession heuristic :
+        empty_squares_and_fruits_loc = np.argwhere(
+            np.logical_or(state.board == 0, state.board > 2))
+
+        count_closest_to_1 = sum(
+            man_dist(sq, player_pos) < man_dist(sq, rival_pos)
+            for sq in empty_squares_and_fruits_loc)
+
+        h += heuristic_params["possessionWeight"] * count_closest_to_1
+
+        # connection components heuristic:
+        squares = np.argwhere(player_vision != -1)
+
+        right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
+        left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
+        up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
+        down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
+
+        G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+        G.add_node(player_pos_in_vision)
+        G.add_node(rival_pos_in_vision)
+
+        h += heuristic_params["ccWeight"] * (len(nx.node_connected_component(G, player_pos_in_vision))
+                                             - len(nx.node_connected_component(G, rival_pos_in_vision)))
+    else:
+        # there are no fruits, use only second phase heuristics
+        # square in possession heuristic :
+        empty_squares_and_fruits_loc = np.argwhere(
+            np.logical_or(state.board == 0, state.board > 2))
+
+        count_closest_to_1 = sum(
+            man_dist(sq, player_pos) < man_dist(sq, rival_pos)
+            for sq in empty_squares_and_fruits_loc)
+
+        h += heuristic_params["possessionWeight"] * count_closest_to_1
+
+        # connection components heuristic:
+        squares = np.argwhere(player_vision != -1)
+
+        right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
+        left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
+        up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
+        down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
+
+        G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+        G.add_node(player_pos_in_vision)
+        G.add_node(rival_pos_in_vision)
+
+        h += heuristic_params["ccWeight"] * (len(nx.node_connected_component(G, player_pos_in_vision))
+                                             - len(nx.node_connected_component(G, rival_pos_in_vision)))
+
+    return h
 
 
 ##################### heuristics end ################################
@@ -325,7 +383,7 @@ class MiniMax(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return ALMOST_INF, None, False #player wins
+                    return ALMOST_INF, None, False  # player wins
                 else:
                     return state.player_1_score, None, False
             else:
@@ -344,8 +402,9 @@ class MiniMax(SearchAlgos):
             level_max_direction = None
             for child in successor_states(state, penalty):
 
-                v_cost, _, is_interrupted = self.search(child, depth-1, maximizing_player,
-                                        remaining_time - (time.time() - time_this_search_start), penalty)
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty)
                 if is_interrupted:
                     return None, None, True
                 if v_cost > cur_max:
@@ -355,8 +414,9 @@ class MiniMax(SearchAlgos):
         else:
             cur_min = np.math.inf
             for child in successor_states(state, penalty):
-                v_cost, _, is_interrupted = self.search(child, depth-1, maximizing_player,
-                                        remaining_time - (time.time() - time_this_search_start), penalty)
+                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
+                                                        remaining_time - (time.time() - time_this_search_start),
+                                                        penalty)
                 if is_interrupted:
                     return None, None, True
                 if v_cost < cur_min:
@@ -365,7 +425,8 @@ class MiniMax(SearchAlgos):
 
 
 class AlphaBeta(SearchAlgos):
-    def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+    def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT,
+               beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -382,7 +443,7 @@ class AlphaBeta(SearchAlgos):
         if state.is_goal():
             if maximizing_player == 1:
                 if state.player_1_score > state.player_2_score:
-                    return ALMOST_INF, None, False #player wins
+                    return ALMOST_INF, None, False  # player wins
                 else:
                     return state.player_1_score, None, False
             else:
@@ -390,7 +451,6 @@ class AlphaBeta(SearchAlgos):
                     return ALMOST_INF, None, False
                 else:
                     return state.player_2_score, None, False
-
 
         if depth == 0:
             return self.heuristic(state, maximizing_player), None, False
@@ -438,12 +498,13 @@ class AlphaBeta(SearchAlgos):
 
 class CompeteAlgo(SearchAlgos):
     """algorithem for the Competition, mostly like AlphaBeta but uses weights"""
-    def __init__(self, utility, succ, perform_move, heuristic_params, heuristic, goal=None):
+
+    def __init__(self, utility, succ, perform_move, heuristic, goal=None):
         SearchAlgos.__init__(self, utility, succ, perform_move, heuristic, goal)
-        self.heuristic_params = heuristic_params
 
 
-    def search(self, state, depth, maximizing_player, remaining_time, penalty, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+    def search(self, state, depth, maximizing_player, penalty, heuristic_params,
+               alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -452,19 +513,15 @@ class CompeteAlgo(SearchAlgos):
         :param: beta: beta value
         :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode, isInterrupted)
         """
-        if remaining_time < INTERRUPT_TIME:
-            return None, None, True
-
-        time_this_search_start = time.time()
 
         if state.is_goal():
-            if maximizing_player == 1:
-                return state.player_1_score, None, False
+            if state.player_1_score > state.player_2_score:
+                return ALMOST_INF, None  # player wins
             else:
-                return state.player_2_score, None, False
+                return -ALMOST_INF, None  # player loses
 
         if depth == 0:
-            return self.heuristic(state, maximizing_player, self.heuristic_params), None, False
+            return self.heuristic(state, maximizing_player, heuristic_params), None
 
         agent_to_move = state.turn
 
@@ -472,37 +529,28 @@ class CompeteAlgo(SearchAlgos):
             cur_max = -np.math.inf
             level_max_direction = None
             for child in successor_states(state, penalty):
-                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
-                                                        remaining_time - (time.time() - time_this_search_start),
-                                                        penalty,
-                                                        alpha,
-                                                        beta)
-                if is_interrupted:
-                    return None, None, True
+                v_cost, _ = self.search(child, depth - 1, maximizing_player, penalty,
+                                        heuristic_params, alpha, beta)
+
                 if v_cost > cur_max:
                     cur_max = v_cost
                     level_max_direction = child.direction_from_parent
                 if cur_max > alpha:
                     alpha = cur_max
                 if cur_max >= beta:
-                    return np.math.inf, None, False
-            return cur_max, level_max_direction, False
+                    return np.math.inf, None
+            return cur_max, level_max_direction
 
         else:
             cur_min = np.math.inf
             for child in successor_states(state, penalty):
-                v_cost, _, is_interrupted = self.search(child, depth - 1, maximizing_player,
-                                                        remaining_time - (time.time() - time_this_search_start),
-                                                        penalty,
-                                                        alpha,
-                                                        beta)
-                if is_interrupted:
-                    return None, None, True
+                v_cost, _ = self.search(child, depth - 1, maximizing_player, penalty,
+                                        heuristic_params, alpha, beta)
+
                 if v_cost < cur_min:
                     cur_min = v_cost
                 if cur_min < beta:
                     beta = cur_min
                 if cur_min <= alpha:
-                    return -np.math.inf, None, False
-            return cur_min, None, False
-
+                    return -np.math.inf, None
+            return cur_min, None

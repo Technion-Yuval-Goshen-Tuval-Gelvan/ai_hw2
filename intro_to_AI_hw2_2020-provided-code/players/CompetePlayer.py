@@ -1,19 +1,31 @@
 """
-Player for the competition
+MiniMax Player with AlphaBeta pruning and global time
 """
-#TODO: change vision during the game
-
-
+import time
 
 from players.AbstractPlayer import AbstractPlayer
-#TODO: you can import more modules, if needed
+import numpy as np
+from SearchAlgos import State, CompeteAlgo, successor_states, compete_heuristic, connected_components_heuristic
 
 
 class Player(AbstractPlayer):
     def __init__(self, game_time, penalty_score):
-        AbstractPlayer.__init__(self, game_time, penalty_score) # keep the inheritance of the parent's (AbstractPlayer) __init__()
-        #TODO: initialize more fields, if needed, and the wanted algorithm from SearchAlgos.py
+        AbstractPlayer.__init__(self, game_time,
+                                penalty_score)  # keep the inheritance of the parent's (AbstractPlayer) __init__()
+        self.board = None
+        self.board_min_len = -1
+        self.played_turns = 0
+        self.player_pos = (-1, -1)
+        self.rival_pos = (-1, -1)
+        self.player_score = 0
+        self.rival_score = 0
+        self.game_remaining_time = game_time
 
+        self.heuristic = compete_heuristic
+        self.algorithm = CompeteAlgo(utility=None,
+                                     succ=successor_states,
+                                     perform_move=None,
+                                     heuristic=self.heuristic)
 
     def set_game_params(self, board):
         """Set the game parameters needed for this player.
@@ -23,9 +35,13 @@ class Player(AbstractPlayer):
             - board: np.array, a 2D matrix of the board.
         No output is expected.
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
-    
+        self.board = np.copy(board)
+        self.board_min_len = np.min(len(board))
+
+        tmp_player_pos = np.where(board == 1)
+        self.player_pos = (tmp_player_pos[0][0], tmp_player_pos[1][0])
+        tmp_rival_pos = np.where(board == 2)
+        self.rival_pos = (tmp_rival_pos[0][0], tmp_rival_pos[1][0])
 
     def make_move(self, time_limit, players_score):
         """Make move with this Player.
@@ -34,9 +50,58 @@ class Player(AbstractPlayer):
         output:
             - direction: tuple, specifing the Player's movement, chosen from self.directions
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        turn_start_time = time.time()
 
+        heuristic_params = {"maxVision": 7,
+                            "ccWeight": 50,
+                            "possessionWeight": 1,
+                            "potentialScoreWeight": 0.5,}
+
+        current_state = State(self.board, 1, self.board_min_len - self.played_turns, self.player_pos,
+                              self.rival_pos, self.player_score, self.rival_score, None)
+
+        if current_state.fruit_remaining_turns > 0:  # fruit stage
+            # calculate average time for turn assuming all squares are reachable
+            expected_remaining_turns = len(np.argwhere(np.logical_or(
+                self.board == 0, self.board > 2))) / 2
+            avg_turn_time = self.game_remaining_time / expected_remaining_turns
+            turn_time_limit = avg_turn_time
+            if self.played_turns < (self.board_min_len / 4):
+                turn_time_limit *= 4
+
+        else:  # no fruit stage
+            # calculate average time for turn, use the following heuristic because it
+            # it does exactly what we need
+            player_cc, rival_cc = connected_components_heuristic(current_state, 1)
+            expected_remaining_turns = np.min([player_cc, rival_cc])
+            avg_turn_time = avg_turn_time = self.game_remaining_time / expected_remaining_turns
+            turn_time_limit = avg_turn_time
+
+        print("avg remaining turn time", avg_turn_time, "(compete)")
+
+        depth = 1
+        remaining_turn_time = turn_time_limit
+        last_iteration_time = 0
+        while remaining_turn_time > last_iteration_time * 3 and depth < 50:
+            t = time.time()
+            chosen_h, chosen_direction = self.algorithm.search(state=current_state,
+                                                               depth=depth,
+                                                               maximizing_player=1,
+                                                               penalty=self.penalty_score,
+                                                               heuristic_params=heuristic_params)
+            last_iteration_time = time.time() - t
+            remaining_turn_time -= last_iteration_time
+            depth += 1
+
+        print("searched depth :", depth - 1, "(compete)")
+        new_player_pos = (self.player_pos[0] + chosen_direction[0], self.player_pos[1] + chosen_direction[1])
+        self.board[self.player_pos] = -1
+        self.player_score += self.board[new_player_pos]
+        self.player_pos = new_player_pos
+        self.board[new_player_pos] = 1
+
+        self.game_remaining_time -= time.time() - turn_start_time
+        return chosen_direction[0], chosen_direction[1]
 
     def set_rival_move(self, pos):
         """Update your info, given the new position of the rival.
@@ -44,9 +109,11 @@ class Player(AbstractPlayer):
             - pos: tuple, the new position of the rival.
         No output is expected
         """
-        #TODO: erase the following line and implement this function.
-        raise NotImplementedError
-
+        rival_id = self.board[self.rival_pos]
+        self.board[self.rival_pos] = -1
+        self.rival_score += self.board[pos]
+        self.rival_pos = pos
+        self.board[pos] = rival_id
 
     def update_fruits(self, fruits_on_board_dict):
         """Update your info on the current fruits on board (if needed).
@@ -56,14 +123,17 @@ class Player(AbstractPlayer):
                                     'value' is the value of this fruit.
         No output is expected.
         """
-        #TODO: erase the following line and implement this function. In case you choose not to use this function, 
-        # use 'pass' instead of the following line.
-        raise NotImplementedError
+        self.played_turns += 1
+        if self.played_turns == (self.board_min_len + 1):
+            # time to clear fruits
+            self.board[self.board > 2] = 0
 
+        if self.played_turns < 2:
+            for key in fruits_on_board_dict.keys():
+                self.board[key] = fruits_on_board_dict[key]
 
     ########## helper functions in class ##########
-    #TODO: add here helper functions in class, if needed
+    # TODO: add here helper functions in class, if needed
 
-
-    ########## helper functions for the search algorithm ##########
-    #TODO: add here the utility, succ, and perform_move functions used in AlphaBeta algorithm
+    ########## helper functions for AlphaBeta algorithm ##########
+    # TODO: add here the utility, succ, and perform_move functions used in AlphaBeta algorithm
