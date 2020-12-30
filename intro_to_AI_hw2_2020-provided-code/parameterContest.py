@@ -34,9 +34,8 @@ for params in param_grid:
     ...
 
     f = open("param_grid_res.csv", "a")
-    f.write(params, win_count)
+    f.write(str(params) + "," + str(win_count) + "\n")
     f.close()
-
 
 
 
