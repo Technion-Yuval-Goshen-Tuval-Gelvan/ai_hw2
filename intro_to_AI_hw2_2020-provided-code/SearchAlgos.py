@@ -203,9 +203,10 @@ def connected_components_heuristic(state, deciding_agent):
     # print(state.player_1_pos, state.player_2_pos)
     # print(state.board)
     # print(right_edges + left_edges + down_edges + up_edges)
+    cc_1 = nx.node_connected_component(G, state.player_1_pos)
+    cc_2 = nx.node_connected_component(G, state.player_2_pos)
 
-    return len(nx.node_connected_component(G, state.player_1_pos)), \
-           len(nx.node_connected_component(G, state.player_2_pos))
+    return len(cc_1), len(cc_2), cc_1 == cc_2
 
 
 def sum_heuristic(state, deciding_agent):
@@ -222,7 +223,7 @@ def phases_sum_heuristic(state, deciding_agent):
                 + potential_score_heuristic(state, deciding_agent)
                 + squares_in_possession_heuristic(state, deciding_agent))
     else:
-        player1_cc, player2_cc = connected_components_heuristic(state, deciding_agent)
+        player1_cc, player2_cc, _ = connected_components_heuristic(state, deciding_agent)
         cc_h = player1_cc - player2_cc
         if deciding_agent == 2:
             cc_h = -cc_h
@@ -240,9 +241,10 @@ def compete_heuristic(state, deciding_agent, heuristic_params):
 
     heuristic_params is dictionary with the parameters and weights
     params:
-    "isShortVersion" - calculate the short version
     "maxVision" - how far from the player to look
     "ccWeight", "possessionWeight", "potentialScoreWeight" - heuristics weights
+    "isDifferentCC" - is true if the two player are in different connection component,
+                    which means they cant affect each other so we don't use some heuristics
     """
     h = 0
 
@@ -251,24 +253,43 @@ def compete_heuristic(state, deciding_agent, heuristic_params):
     player_id = 1
     rival_id = 2
 
+    max_vision = heuristic_params["maxVision"]
+    if heuristic_params["isDifferentCC"]:
+        max_vision = np.math.ceil(max_vision*1.5)
+
     # set players vision:
     # vision is set acording to the parameter but makes sure that
     # rival will be in sight and at least one block after him
-    i_min = np.min([player_pos[0] - heuristic_params["maxVision"], rival_pos[0] - 1])
+    i_min = np.min([player_pos[0] - max_vision, rival_pos[0] - 1])
     i_min = np.max([0, i_min])
-    i_max = np.max([player_pos[0] + heuristic_params["maxVision"], rival_pos[0] + 1])
+    i_max = np.max([player_pos[0] + max_vision, rival_pos[0] + 1])
     i_max = np.min([state.board.shape[0] - 1, i_max])
 
-    j_min = np.min([player_pos[1] - heuristic_params["maxVision"], rival_pos[1] - 1])
+    j_min = np.min([player_pos[1] - max_vision, rival_pos[1] - 1])
     j_min = np.max([0, j_min])
-    j_max = np.max([player_pos[1] + heuristic_params["maxVision"], rival_pos[1] + 1])
+    j_max = np.max([player_pos[1] + max_vision, rival_pos[1] + 1])
     j_max = np.min([state.board.shape[1] - 1, j_max])
 
     player_vision = state.board[i_min:i_max + 1, j_min:j_max + 1]
     player_pos_in_vision = tuple(np.argwhere(player_vision == player_id)[0])
     rival_pos_in_vision = tuple(np.argwhere(player_vision == rival_id)[0])
 
-    if state.fruit_remaining_turns >= 1:
+    if heuristic_params["isDifferentCC"]:
+        # the game is almost over- both players are in different areas so some of the heuristic
+        # are non relevant. we do not care about the rival anymore, we use all board and not player vision :
+        squares = np.argwhere(player_vision != -1)
+
+        right_edges = [(tuple(s), (s[0], s[1] + 1)) for s in squares if [s[0], s[1] + 1] in squares.tolist()]
+        left_edges = [(tuple(s), (s[0], s[1] - 1)) for s in squares if [s[0], s[1] - 1] in squares.tolist()]
+        up_edges = [(tuple(s), (s[0] - 1, s[1])) for s in squares if [s[0] - 1, s[1]] in squares.tolist()]
+        down_edges = [(tuple(s), (s[0] + 1, s[1])) for s in squares if [s[0] + 1, s[1]] in squares.tolist()]
+
+        G = nx.Graph(right_edges + left_edges + down_edges + up_edges)
+        G.add_node(player_pos_in_vision)
+
+        h += heuristic_params["ccWeight"] * len(nx.node_connected_component(G, player_pos_in_vision))
+
+    elif state.fruit_remaining_turns >= 1:
         # there are fruit for at least 2 turns, use only first phase heuristics
         h += state.player_1_score - state.player_2_score
 

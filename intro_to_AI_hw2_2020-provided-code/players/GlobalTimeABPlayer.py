@@ -70,7 +70,7 @@ class Player(AbstractPlayer):
         else: # no fruit stage
             # calculate average time for turn, use the following heuristic because it
             # it does exactly what we need
-            player_cc, rival_cc = connected_components_heuristic(current_state, 1)
+            player_cc, rival_cc, _ = connected_components_heuristic(current_state, 1)
             expected_remaining_turns = np.min([player_cc, rival_cc])
             avg_turn_time = avg_turn_time = self.game_remaining_time / expected_remaining_turns
             turn_time_limit = avg_turn_time
