@@ -3,15 +3,46 @@ from GameWrapper import GameWrapper
 import os, sys
 import utils
 import players.CompetePlayer
+import itertools
+import csv
 
-player_1 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score)
-player_2 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score)
+ref_params = {"maxVision": 7,
+                            "ccWeight": 20,
+                            "possessionWeight": 1,
+                            "potentialScoreWeight": 0.5,}
+
+maxVision_param = [6, 7, 8]
+ccWeight_param = [3, 20, 50]
+possesionWeightParam = [0.1, 1, 10]
+potentialScoreWeight_param = [0.1, 0.5, 2]
+
+param_grid = list(itertools.product(maxVision_param, ccWeight_param, possesionWeightParam, potentialScoreWeight_param))
+
+
+for params in param_grid:
+    h_params = {"maxVision": params[0],
+                            "ccWeight": params[1],
+                            "possessionWeight": params[2],
+                            "potentialScoreWeight": params[3],}
+                            
+    win_count = 0
+
+    board = utils.get_board_from_csv(args.board)
+    player_1 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score, )
+    player_2 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score, )
+
+    ...
+
+    f = open("param_grid_res.csv", "a")
+    f.write(params, win_count)
+    f.close()
+
+
+
 
 ## add extra args to player constructor (make them default in player file)
 # continue editing from here : 
 
-
-board = utils.get_board_from_csv(args.board)
 
 # print game info to terminal
 print('Starting Game!')
@@ -32,3 +63,4 @@ game = GameWrapper(board[0], board[1], board[2], player_1=player_1, player_2=pla
 
 # start playing!
 game.start_game()
+
