@@ -65,6 +65,13 @@ def main():
         param_score += p2_score - p1_score
         if p1_score < p2_score:
             win_count += 1
+
+        print("-----------2 board--------------")
+        p1_score, p2_score = play_game("2.csv", 60, h_params)
+        param_score += p2_score - p1_score
+        if p1_score < p2_score:
+            win_count += 1
+
         print("-----------5 board--------------")
         p1_score, p2_score = play_game("5.csv", 60, h_params)
         param_score += p2_score - p1_score
