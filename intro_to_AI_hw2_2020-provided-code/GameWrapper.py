@@ -47,12 +47,15 @@ class GameWrapper:
 
         for i, player in enumerate(self.players):
             player.set_game_params(self.game.get_map_for_player_i(player_id=i))
+
+        self.player1_end_score = None
+        self.player2_end_score = None
         
 
     def start_game(self):
         if self.terminal_viz:
             self.t = 0
-            self.run_game()
+            return self.run_game()
         else:
             self.game.start_game()
 
@@ -73,6 +76,13 @@ class GameWrapper:
                 messages = [f'    Player {winning_player} Won!', f'scores: {score_1}, {score_2}']
 
             self.pretty_print_end_game(messages)
+
+            self.player1_end_score = score_1
+            self.player2_end_score = score_2
+            return True
+
+        return False
+
 
     def play_turn(self, player_index):
         # get fruits on board - we assume each player can see the board at any time
@@ -146,7 +156,9 @@ class GameWrapper:
             else:
                 pos = self.play_turn(player_index)
             self.game.update_staff_with_pos(pos)
-            self.check_cant_move_end_game(player_index)
+            if self.check_cant_move_end_game(player_index):
+                return self.player1_end_score, self.player2_end_score #######
+
             if self.print_game_in_terminal:
                 print('\nBoard after player', player_index + 1, 'moved')
                 self.game.print_board_to_terminal(player_id=0)
@@ -173,4 +185,3 @@ class GameWrapper:
             print(message)
         print('####################')
         print('####################')
-        sys.exit(0)

@@ -7,59 +7,76 @@ import itertools
 import csv
 
 ref_params = {"maxVision": 7,
-                            "ccWeight": 20,
-                            "possessionWeight": 1,
-                            "potentialScoreWeight": 0.5,}
+              "ccWeight": 20,
+              "possessionWeight": 1,
+              "potentialScoreWeight": 0.5, }
 
 maxVision_param = [6, 7, 8]
 ccWeight_param = [3, 20, 50]
-possesionWeightParam = [0.1, 1, 10]
+possessionWeightParam = [0.1, 1, 10]
 potentialScoreWeight_param = [0.1, 0.5, 2]
 
-param_grid = list(itertools.product(maxVision_param, ccWeight_param, possesionWeightParam, potentialScoreWeight_param))
+param_grid = list(itertools.product(maxVision_param, ccWeight_param, possessionWeightParam, potentialScoreWeight_param))
 
 
-for params in param_grid:
-    h_params = {"maxVision": params[0],
-                            "ccWeight": params[1],
-                            "possessionWeight": params[2],
-                            "potentialScoreWeight": params[3],}
-                            
-    win_count = 0
+def play_game(board_name, game_time, h_params):
+    board = utils.get_board_from_csv(board_name)
+    player_1 = sys.modules["players.CompetePlayer"].Player(game_time=game_time,
+                                                           penalty_score=300,
+                                                           heuristic_params=ref_params)
+    player_2 = sys.modules["players.CompetePlayer"].Player(game_time=game_time,
+                                                           penalty_score=300,
+                                                           heuristic_params=h_params)
 
-    board = utils.get_board_from_csv(args.board)
-    player_1 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score, )
-    player_2 = sys.modules[players.CompetePlayer].Player(game_time, penalty_score, )
-
-    ...
-
-    f = open("param_grid_res.csv", "a")
-    f.write(str(params) + "," + str(win_count) + "\n")
-    f.close()
-
-
-
-## add extra args to player constructor (make them default in player file)
-# continue editing from here : 
+    game = GameWrapper(board[0], board[1], board[2], player_1=player_1, player_2=player_2,
+                       terminal_viz=True,
+                       print_game_in_terminal=False,
+                       time_to_make_a_move=game_time,
+                       game_time=game_time,
+                       penalty_score=300,
+                       )
+    return game.start_game()
 
 
-# print game info to terminal
-print('Starting Game!')
-print(args.player1, 'VS', args.player2)
-print('Board', args.board)
-print('Players have', args.move_time, 'seconds to make a signle move.')
-print('Each player has', game_time, 'seconds to play in a game (global game time, sum of all moves).')
+def main():
+    for params in param_grid:
+        h_params = {"maxVision": params[0],
+                    "ccWeight": params[1],
+                    "possessionWeight": params[2],
+                    "potentialScoreWeight": params[3], }
 
-# create game with the given args
-game = GameWrapper(board[0], board[1], board[2], player_1=player_1, player_2=player_2,
-                terminal_viz=args.terminal_viz, 
-                print_game_in_terminal=not args.dont_print_game,
-                time_to_make_a_move=args.move_time, 
-                game_time=game_time, 
-                penalty_score = args.penalty_score,
-                max_fruit_score = args.max_fruit_score,
-                max_fruit_time = args.max_fruit_time)
+        print(h_params)
+        print("##############################################################################################")
 
-# start playing!
-game.start_game()
+        win_count = 0
+        param_score = 0
+        print("-----------default_board--------------")
+        p1_score, p2_score = play_game("default_board.csv", 21, h_params)
+        param_score += p2_score - p1_score
+        if p1_score < p2_score:
+            win_count += 1
+        print("-----------MyBoard--------------")
+        p1_score, p2_score = play_game("MyBoard.csv", 180, h_params)
+        param_score += p2_score - p1_score
+        if p1_score < p2_score:
+            win_count += 1
+        print("-----------1 board--------------")
+        p1_score, p2_score = play_game("1.csv", 90, h_params)
+        param_score += p2_score - p1_score
+        if p1_score < p2_score:
+            win_count += 1
+        print("-----------5 board--------------")
+        p1_score, p2_score = play_game("5.csv", 60, h_params)
+        param_score += p2_score - p1_score
+        if p1_score < p2_score:
+            win_count += 1
 
+        f = open("param_grid_res.csv", "a")
+        print(params)
+        print(win_count)
+        f.write("{},{},{}\n".format(params, param_score, win_count))
+        f.close()
+        print("##############################################################################################")
+
+
+main()

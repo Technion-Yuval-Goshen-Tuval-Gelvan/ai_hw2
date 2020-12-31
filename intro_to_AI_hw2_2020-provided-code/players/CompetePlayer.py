@@ -87,11 +87,11 @@ class Player(AbstractPlayer):
                 turn_time_limit *= 3
             
         print("avg remaining turn time", avg_turn_time, "(compete)")
-
         depth = 1
         remaining_turn_time = turn_time_limit
         last_iteration_time = 0
-        while remaining_turn_time > last_iteration_time * 3 and depth < 50:
+        chosen_direction = (0, 1)
+        while True:
             t = time.time()
             chosen_h, chosen_direction = self.algorithm.search(state=current_state,
                                                                depth=depth,
@@ -101,6 +101,8 @@ class Player(AbstractPlayer):
             last_iteration_time = time.time() - t
             remaining_turn_time -= last_iteration_time
             depth += 1
+            if not(remaining_turn_time > last_iteration_time * 3 and depth < 50):
+                break
 
         print("searched depth :", depth - 1, "(compete)")
         new_player_pos = (self.player_pos[0] + chosen_direction[0], self.player_pos[1] + chosen_direction[1])
